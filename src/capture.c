@@ -15,7 +15,7 @@ int list_devices(void)
         return -1;
     }
 
-    printf("可用网卡列表：\n");
+    printf("========== 可用网卡 ==========\n");
 
     for (dev = alldevs; dev != NULL; dev = dev->next) {
         printf("%d. %s", ++count, dev->name);
@@ -28,12 +28,6 @@ int list_devices(void)
     }
 
     pcap_freealldevs(alldevs);
-
-    if (count == 0) {
-        printf("未找到可用网卡。\n");
-        return -1;
-    }
-
     return count;
 }
 
@@ -69,23 +63,59 @@ void capture_one_packet(pcap_t *handle)
 {
     struct pcap_pkthdr *header;
     const u_char *data;
-
     int res;
 
-    while ((res = pcap_next_ex(handle, &header, &data)) == 0)
-    {
-        // 一直等到抓到数据包
+    while ((res = pcap_next_ex(handle, &header, &data)) == 0) {
+        /* 等待数据包 */
     }
 
-    if (res == 1)
-    {
-        printf("捕获成功！\n");
-        printf("长度：%u 字节\n", header->len);
+    if (res == 1) {
+        printf("捕获成功！长度：%u 字节\n", header->len);
+    } else {
+        printf("抓包失败。\n");
     }
-    else
-    {
-        printf("抓包失败！\n");
+}
+
+/* 连续抓包 */
+void capture_packets(pcap_t *handle, int packet_count)
+{
+    for (int i = 0; i < packet_count; i++) {
+        printf("第 %d 个数据包：", i + 1);
+        capture_one_packet(handle);
     }
+}
+
+/* 抓包并保存为pcap文件 */
+void capture_save_to_file(pcap_t *handle, int packet_count, const char *filename)
+{
+    struct pcap_pkthdr *header;
+    const u_char *data;
+    pcap_dumper_t *dumper;
+    int res;
+    int saved = 0;
+
+    dumper = pcap_dump_open(handle, filename);
+
+    if (dumper == NULL) {
+        printf("创建pcap文件失败。\n");
+        return;
+    }
+
+    printf("开始保存数据包到文件：%s\n", filename);
+
+    while (saved < packet_count) {
+        res = pcap_next_ex(handle, &header, &data);
+
+        if (res == 1) {
+            pcap_dump((u_char *)dumper, header, data);
+            printf("已保存第 %d 个数据包，长度：%u 字节\n", saved + 1, header->len);
+            saved++;
+        }
+    }
+
+    pcap_dump_close(dumper);
+
+    printf("pcap文件保存完成。\n");
 }
 
 /* 停止抓包 */
