@@ -1,7 +1,10 @@
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include <stdio.h>
 #include <string.h>
 #include <pcap.h>
 #include "capture.h"
+#include "net_utils.h"
 
 /* 清空输入缓冲区 */
 void clear_input_buffer(void)
@@ -27,7 +30,7 @@ int select_device(char *device_name, int size)
         return -1;
     }
 
-    printf("========== Device List ==========\n");
+    printf("========== 可用网卡列表 ==========\n");
 
     for (dev = alldevs; dev != NULL; dev = dev->next) {
         printf("%d. %s", ++count, dev->name);
@@ -45,11 +48,11 @@ int select_device(char *device_name, int size)
         return -1;
     }
 
-    printf("\nSelect device number: ");
+    printf("\n请选择要抓包的网卡编号: ");
     scanf("%d", &choice);
 
     if (choice < 1 || choice > count) {
-        printf("Invalid device number.\n");
+        printf("网卡编号无效.\n");
         pcap_freealldevs(alldevs);
         return -1;
     }
@@ -79,7 +82,7 @@ void menu_capture(void)
         return;
     }
 
-    printf("Input packet count: ");
+    printf("请输入抓包数量: ");
     scanf("%d", &count);
 
     if (count <= 0) {
@@ -109,14 +112,14 @@ void menu_save_pcap(void)
         return;
     }
 
-    printf("Input packet count: ");
+    printf("请输入抓包数量: ");
     scanf("%d", &count);
 
     if (count <= 0) {
         count = 10;
     }
 
-    printf("Input pcap filename: ");
+    printf("请输入pcap文件名: ");
     scanf("%255s", filename);
 
     handle = capture_init(device_name);
@@ -135,7 +138,7 @@ void menu_read_pcap(void)
 {
     char filename[256];
 
-    printf("Input pcap filename: ");
+    printf("请输入pcap文件名: ");
     scanf("%255s", filename);
 
     read_pcap_file(filename);
@@ -153,7 +156,7 @@ void menu_filter_capture(void)
         return;
     }
 
-    printf("Input packet count: ");
+    printf("请输入抓包数量: ");
     scanf("%d", &count);
 
     if (count <= 0) {
@@ -162,8 +165,8 @@ void menu_filter_capture(void)
 
     clear_input_buffer();
 
-    printf("Input BPF filter, for example: tcp / udp / icmp / tcp port 80\n");
-    printf("Filter: ");
+    printf("请输入BPF过滤规则，例如 tcp / udp / icmp / tcp port 80\n");
+    printf("过滤规则: ");
     fgets(filter_exp, sizeof(filter_exp), stdin);
 
     filter_exp[strcspn(filter_exp, "\n")] = '\0';
@@ -182,22 +185,74 @@ void menu_filter_capture(void)
     stop_capture(handle);
 }
 
+/* 按过滤规则读取pcap文件 */
+void menu_read_pcap_with_filter(void)
+{
+    char filename[256];
+    char filter_exp[256];
+
+    printf("请输入pcap文件名：");
+    scanf("%255s", filename);
+
+    clear_input_buffer();
+
+    printf("请输入BPF过滤规则，例如 tcp / udp / icmp / host 192.168.31.143\n");
+    printf("过滤规则：");
+    fgets(filter_exp, sizeof(filter_exp), stdin);
+
+    filter_exp[strcspn(filter_exp, "\n")] = '\0';
+
+    read_pcap_file_with_filter(filename, filter_exp);
+}
+
+/* 性能测试 */
+void menu_performance_test(void)
+{
+    char device_name[512];
+    int seconds;
+    pcap_t *handle;
+
+    if (select_device(device_name, sizeof(device_name)) != 0)
+    {
+        return;
+    }
+
+    printf("请输入测试时长，单位秒：");
+    scanf("%d", &seconds);
+
+    handle = capture_init(device_name);
+
+    if (handle == NULL)
+    {
+        return;
+    }
+
+    performance_capture_test(handle, seconds);
+
+    stop_capture(handle);
+}
+
 /* 显示菜单 */
 void show_menu(void)
 {
-    printf("\n========== Packet Capture Tool ==========\n");
-    printf("1. Show device list\n");
-    printf("2. Capture packets with statistics\n");
-    printf("3. Capture and save to pcap file\n");
-    printf("4. Read pcap file\n");
-    printf("5. Capture with BPF filter\n");
-    printf("0. Exit\n");
-    printf("Select: ");
+    printf("\n========== 网络数据包捕获工具 ==========\n");
+    printf("1. 查看网卡列表\n");
+    printf("2. 连续抓包并显示统计信息\n");
+    printf("3. 抓包并保存为pcap文件\n");
+    printf("4. 读取pcap文件回放\n");
+    printf("5. 使用BPF过滤规则抓包\n");
+    printf("6. 按BPF规则读取pcap文件\n");
+    printf("7. 工具函数自测\n");
+    printf("8. 抓包性能测试\n");
+    printf("0. 退出程序\n");
+    printf("请选择功能：");
 }
 
 /* 程序入口 */
 int main()
 {
+        SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
     int choice;
 
     while (1) {
@@ -225,13 +280,26 @@ int main()
             menu_filter_capture();
             break;
 
-        case 0:
-            printf("Exit program.\n");
-            return 0;
+            case 6:
+    menu_read_pcap_with_filter();
+    break;
 
-        default:
-            printf("Invalid choice.\n");
-            break;
+case 7:
+    net_utils_self_test();
+    break;
+
+case 8:
+    menu_performance_test();
+    break;
+
+
+case 0:
+    printf("退出程序。\n");
+    return 0;
+
+default:
+    printf("输入无效，请重新选择。\n");
+    break;
         }
     }
 

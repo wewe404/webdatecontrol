@@ -24,6 +24,12 @@ void capture_save_to_file(pcap_t *handle, int packet_count, const char *filename
 /* 读取pcap文件回放 */
 void read_pcap_file(const char *filename);
 
+/* 按BPF规则读取pcap文件 */
+void read_pcap_file_with_filter(const char *filename, const char *filter_exp);
+
+/* 抓包性能测试 */
+void performance_capture_test(pcap_t *handle, int seconds);
+
 /* 设置BPF过滤规则 */
 int apply_filter(pcap_t *handle, const char *filter_exp);
 
