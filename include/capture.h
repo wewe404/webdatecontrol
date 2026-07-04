@@ -15,6 +15,18 @@ void start_capture(pcap_t *handle);
 /* 抓取一个数据包 */
 void capture_one_packet(pcap_t *handle);
 
+/* 连续抓包并统计 */
+void capture_packets_with_stats(pcap_t *handle, int packet_count);
+
+/* 抓包并保存为pcap文件 */
+void capture_save_to_file(pcap_t *handle, int packet_count, const char *filename);
+
+/* 读取pcap文件回放 */
+void read_pcap_file(const char *filename);
+
+/* 设置BPF过滤规则 */
+int apply_filter(pcap_t *handle, const char *filter_exp);
+
 /* 停止抓包 */
 void stop_capture(pcap_t *handle);
 
