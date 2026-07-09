@@ -34,3 +34,11 @@ chcp 65001
 chcp 65001
 .\main.exe
 ```
+```
+ncursesUI使用说明：
+首先在PowerShell运行
+.\pdcurses_setup.ps1   
+然后运行
+.\build.bat ncurses
+.\main_ncurses.exe
+```
