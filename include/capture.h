@@ -1,3 +1,11 @@
+/*
+ * capture.h - 抓包引擎模块接口声明
+ *
+ * 成员A负责模块
+ *
+ * 提供实时抓包、BPF过滤、
+ * PCAP文件保存回放及性能统计接口。
+ */
 #ifndef CAPTURE_H
 #define CAPTURE_H
 

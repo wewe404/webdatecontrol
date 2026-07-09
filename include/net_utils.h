@@ -1,3 +1,10 @@
+/*
+ * net_utils.h - 网络工具函数接口声明
+ *
+ * 成员A负责模块
+ *
+ * 提供MAC/IP地址转换和校验和计算接口。
+ */
 #ifndef NET_UTILS_H
 #define NET_UTILS_H
 
