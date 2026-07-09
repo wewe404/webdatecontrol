@@ -1,22 +1,8 @@
-/*
- * capture.c - 抓包引擎与PCAP文件层核心实现
- *
- * 成员A负责模块
- *
- * 主要完成：
- * 1. 网卡枚举与指定网卡打开
- * 2. 实时连续抓包与抓包统计
- * 3. BPF过滤规则编译和设置
- * 4. PCAP文件保存与读取回放
- * 5. PCAP文件按BPF规则过滤读取
- * 6. 抓包性能及丢包情况统计
- */
 #include <stdio.h>
 #include <time.h>
 #include <pcap.h>
 #include "capture.h"
 
-/* 显示所有可用网卡 */
 int list_devices(void)
 {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -33,11 +19,9 @@ int list_devices(void)
 
     for (dev = alldevs; dev != NULL; dev = dev->next) {
         printf("%d. %s", ++count, dev->name);
-
         if (dev->description != NULL) {
             printf(" - %s", dev->description);
         }
-
         printf("\n");
     }
 
@@ -51,7 +35,6 @@ int list_devices(void)
     return count;
 }
 
-/* 初始化抓包模块 */
 pcap_t* capture_init(const char *device)
 {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -67,7 +50,6 @@ pcap_t* capture_init(const char *device)
     return handle;
 }
 
-/* 开始抓包 */
 void start_capture(pcap_t *handle)
 {
     if (handle == NULL) {
@@ -78,7 +60,6 @@ void start_capture(pcap_t *handle)
     printf("Capture module is ready.\n");
 }
 
-/* 抓取一个数据包 */
 void capture_one_packet(pcap_t *handle)
 {
     struct pcap_pkthdr *header;
@@ -86,7 +67,7 @@ void capture_one_packet(pcap_t *handle)
     int res;
 
     while ((res = pcap_next_ex(handle, &header, &data)) == 0) {
-        /* 等待数据包 */
+        /* wait */
     }
 
     if (res == 1) {
@@ -96,7 +77,6 @@ void capture_one_packet(pcap_t *handle)
     }
 }
 
-/* 连续抓包并统计 */
 void capture_packets_with_stats(pcap_t *handle, int packet_count)
 {
     struct pcap_pkthdr *header;
@@ -114,25 +94,17 @@ void capture_packets_with_stats(pcap_t *handle, int packet_count)
 
         if (res == 1) {
             captured++;
-
             printf("Packet %d: length = %u bytes\n", captured, header->len);
-
             total_bytes += header->len;
 
             if (captured == 1) {
                 max_len = header->len;
                 min_len = header->len;
             } else {
-                if (header->len > max_len) {
-                    max_len = header->len;
-                }
-
-                if (header->len < min_len) {
-                    min_len = header->len;
-                }
+                if (header->len > max_len) max_len = header->len;
+                if (header->len < min_len) min_len = header->len;
             }
         } else if (res == 0) {
-            /* 超时继续等待 */
             continue;
         } else {
             printf("Capture error.\n");
@@ -150,7 +122,6 @@ void capture_packets_with_stats(pcap_t *handle, int packet_count)
     }
 }
 
-/* 抓包并保存为pcap文件 */
 void capture_save_to_file(pcap_t *handle, int packet_count, const char *filename)
 {
     struct pcap_pkthdr *header;
@@ -174,7 +145,6 @@ void capture_save_to_file(pcap_t *handle, int packet_count, const char *filename
         if (res == 1) {
             pcap_dump((u_char *)dumper, header, data);
             saved++;
-
             printf("Saved packet %d, length: %u bytes\n", saved, header->len);
         } else if (res == 0) {
             continue;
@@ -185,11 +155,9 @@ void capture_save_to_file(pcap_t *handle, int packet_count, const char *filename
     }
 
     pcap_dump_close(dumper);
-
     printf("Pcap file saved successfully.\n");
 }
 
-/* 读取pcap文件回放 */
 void read_pcap_file(const char *filename)
 {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -211,9 +179,7 @@ void read_pcap_file(const char *filename)
     printf("File name: %s\n", filename);
 
     while ((res = pcap_next_ex(handle, &header, &data)) >= 0) {
-        if (res == 0) {
-            continue;
-        }
+        if (res == 0) continue;
 
         count++;
         total_bytes += header->len;
@@ -229,7 +195,6 @@ void read_pcap_file(const char *filename)
     pcap_close(handle);
 }
 
-/* 设置BPF过滤规则 */
 int apply_filter(pcap_t *handle, const char *filter_exp)
 {
     struct bpf_program fp;
@@ -251,7 +216,6 @@ int apply_filter(pcap_t *handle, const char *filter_exp)
     return 0;
 }
 
-/* 按BPF规则读取pcap文件 */
 void read_pcap_file_with_filter(const char *filename, const char *filter_exp)
 {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -292,10 +256,7 @@ void read_pcap_file_with_filter(const char *filename, const char *filter_exp)
 
     while ((res = pcap_next_ex(handle, &header, &data)) >= 0)
     {
-        if (res == 0)
-        {
-            continue;
-        }
+        if (res == 0) continue;
 
         count++;
         total_bytes += header->len;
@@ -312,7 +273,6 @@ void read_pcap_file_with_filter(const char *filename, const char *filter_exp)
     pcap_close(handle);
 }
 
-/* 抓包性能测试 */
 void performance_capture_test(pcap_t *handle, int seconds)
 {
     struct pcap_pkthdr *header;
@@ -333,10 +293,7 @@ void performance_capture_test(pcap_t *handle, int seconds)
         return;
     }
 
-    if (seconds <= 0)
-    {
-        seconds = 10;
-    }
+    if (seconds <= 0) seconds = 10;
 
     printf("\n========== 抓包性能测试 ==========\n");
     printf("测试时长：%d 秒\n", seconds);
@@ -348,35 +305,23 @@ void performance_capture_test(pcap_t *handle, int seconds)
     {
         now_time = time(NULL);
 
-        if ((int)(now_time - start_time) >= seconds)
-        {
-            break;
-        }
+        if ((int)(now_time - start_time) >= seconds) break;
 
         res = pcap_next_ex(handle, &header, &data);
 
-        if (res == 1)
-        {
+        if (res == 1) {
             packet_count++;
             total_bytes += header->len;
-        }
-        else if (res == 0)
-        {
+        } else if (res == 0) {
             continue;
-        }
-        else
-        {
+        } else {
             printf("抓包过程中出现错误。\n");
             break;
         }
     }
 
     elapsed = difftime(time(NULL), start_time);
-
-    if (elapsed <= 0)
-    {
-        elapsed = 1;
-    }
+    if (elapsed <= 0) elapsed = 1;
 
     pps = packet_count / elapsed;
     mbps = (total_bytes * 8.0) / elapsed / 1000000.0;
@@ -407,7 +352,6 @@ void performance_capture_test(pcap_t *handle, int seconds)
     }
 }
 
-/* 停止抓包 */
 void stop_capture(pcap_t *handle)
 {
     if (handle != NULL) {

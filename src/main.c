@@ -1,18 +1,13 @@
 /**
  * main.c - 网络数据包捕获与协议解析工具 主程序
  *
- * 成员A/D: 原有抓包/文件/性能测试菜单 (选项1-8)
- * 成员C: 应用层解析/统计/BPF过滤菜单 (选项9-16)
+ * 综合版本：整合了 member A/D 的抓包功能 和 member C 的应用层解析/统计/BPF过滤功能
+ * 使用独立模块化解析器：eth_parser / ip_parser / tcp_parser / udp_parser / icmp_parser (源自 dev_b_parser 分支)
+ * 使用应用层解析模块：dns_parser / http_parser / bpf_filter / stats (源自 main 分支)
  *
- * 成员C新增功能：
- *   9.  协议分析（解析pcap文件中各层协议）
- *   10. DNS解析演示（解析pcap中的DNS报文）
- *   11. HTTP解析演示（解析pcap中的HTTP报文）
- *   12. BPF过滤测试套件（批量规则测试）
- *   13. BPF常见规则示例
- *   14. 流量统计（实时抓包统计）
- *   15. 流量统计（pcap文件统计）
- *   16. 流量统计（pcap文件+BPF过滤统计）
+ * 功能菜单：
+ *   1-8:  抓包与文件操作 (基础功能)
+ *   9-16: 协议解析与流量统计 (高级功能)
  */
 
 #define WIN32_LEAN_AND_MEAN
@@ -34,8 +29,7 @@
 void clear_input_buffer(void)
 {
     int ch;
-    while ((ch = getchar()) != '\n' && ch != EOF) {
-    }
+    while ((ch = getchar()) != '\n' && ch != EOF) { }
 }
 
 /* 选择网卡 */
@@ -46,7 +40,6 @@ int select_device(char *device_name, int size)
     pcap_if_t *dev;
     int count = 0;
     int choice;
-    int i;
 
     if (pcap_findalldevs(&alldevs, errbuf) == -1) {
         printf("Get devices failed: %s\n", errbuf);
@@ -54,12 +47,10 @@ int select_device(char *device_name, int size)
     }
 
     printf("========== 可用网卡列表 ==========\n");
-
     for (dev = alldevs; dev != NULL; dev = dev->next) {
         printf("%d. %s", ++count, dev->name);
-        if (dev->description != NULL) {
+        if (dev->description != NULL)
             printf(" - %s", dev->description);
-        }
         printf("\n");
     }
 
@@ -79,9 +70,8 @@ int select_device(char *device_name, int size)
     }
 
     dev = alldevs;
-    for (i = 1; i < choice; i++) {
+    for (int i = 1; i < choice; i++)
         dev = dev->next;
-    }
 
     strncpy(device_name, dev->name, size - 1);
     device_name[size - 1] = '\0';
@@ -90,19 +80,18 @@ int select_device(char *device_name, int size)
     return 0;
 }
 
-/* ==================== 成员A/D 原有菜单函数 ==================== */
+/* ==================== 菜单函数 ==================== */
 
-/* 实时抓包 */
+/* 1. 查看网卡列表 (已在 capture.c 中实现) */
+
+/* 2. 实时抓包并统计 */
 void menu_capture(void)
 {
     char device_name[512];
     int count;
     pcap_t *handle;
 
-    if (select_device(device_name, sizeof(device_name)) != 0) {
-        return;
-    }
-
+    if (select_device(device_name, sizeof(device_name)) != 0) return;
     printf("请输入抓包数量: ");
     scanf("%d", &count);
     if (count <= 0) count = 10;
@@ -115,7 +104,7 @@ void menu_capture(void)
     stop_capture(handle);
 }
 
-/* 保存pcap文件 */
+/* 3. 保存pcap文件 */
 void menu_save_pcap(void)
 {
     char device_name[512];
@@ -124,11 +113,9 @@ void menu_save_pcap(void)
     pcap_t *handle;
 
     if (select_device(device_name, sizeof(device_name)) != 0) return;
-
     printf("请输入抓包数量: ");
     scanf("%d", &count);
     if (count <= 0) count = 10;
-
     printf("请输入pcap文件名: ");
     scanf("%255s", filename);
 
@@ -140,7 +127,7 @@ void menu_save_pcap(void)
     stop_capture(handle);
 }
 
-/* 读取pcap文件 */
+/* 4. 读取pcap文件 */
 void menu_read_pcap(void)
 {
     char filename[256];
@@ -149,7 +136,7 @@ void menu_read_pcap(void)
     read_pcap_file(filename);
 }
 
-/* BPF过滤抓包 */
+/* 5. BPF过滤抓包 */
 void menu_filter_capture(void)
 {
     char device_name[512];
@@ -158,7 +145,6 @@ void menu_filter_capture(void)
     pcap_t *handle;
 
     if (select_device(device_name, sizeof(device_name)) != 0) return;
-
     printf("请输入抓包数量: ");
     scanf("%d", &count);
     if (count <= 0) count = 10;
@@ -179,7 +165,7 @@ void menu_filter_capture(void)
     stop_capture(handle);
 }
 
-/* 按过滤规则读取pcap文件 */
+/* 6. 按过滤规则读取pcap文件 */
 void menu_read_pcap_with_filter(void)
 {
     char filename[256];
@@ -188,7 +174,6 @@ void menu_read_pcap_with_filter(void)
     printf("请输入pcap文件名：");
     scanf("%255s", filename);
     clear_input_buffer();
-
     printf("请输入BPF过滤规则，例如 tcp / udp / icmp / host 192.168.31.143\n");
     printf("过滤规则：");
     fgets(filter_exp, sizeof(filter_exp), stdin);
@@ -197,7 +182,13 @@ void menu_read_pcap_with_filter(void)
     read_pcap_file_with_filter(filename, filter_exp);
 }
 
-/* 性能测试 */
+/* 7. 工具函数自测 */
+void menu_self_test(void)
+{
+    net_utils_self_test();
+}
+
+/* 8. 性能测试 */
 void menu_performance_test(void)
 {
     char device_name[512];
@@ -205,7 +196,6 @@ void menu_performance_test(void)
     pcap_t *handle;
 
     if (select_device(device_name, sizeof(device_name)) != 0) return;
-
     printf("请输入测试时长，单位秒：");
     scanf("%d", &seconds);
 
@@ -215,8 +205,6 @@ void menu_performance_test(void)
     performance_capture_test(handle, seconds);
     stop_capture(handle);
 }
-
-/* ==================== 成员C 新增菜单函数 ==================== */
 
 /* 9. 协议分析 */
 void menu_protocol_analyze(void)
@@ -241,11 +229,10 @@ void menu_protocol_analyze(void)
         clear_input_buffer();
     }
 
-    if (has_filter) {
+    if (has_filter)
         analyze_pcap_file_with_filter(filename, filter_exp, 1);
-    } else {
+    else
         analyze_pcap_file(filename, 1);
-    }
 }
 
 /* 10. DNS解析演示 */
@@ -288,11 +275,10 @@ void menu_dns_parse(void)
                 printf("\n--- DNS报文 #%d ---\n", dns_count);
 
                 dns_result_t dns;
-                if (parse_dns(pkt.payload, pkt.payload_len, &dns) == 0) {
+                if (parse_dns(pkt.payload, pkt.payload_len, &dns) == 0)
                     print_dns(&dns);
-                } else {
+                else
                     printf("DNS解析失败\n");
-                }
 
                 if (dns_count >= 20) {
                     printf("\n(已达20个DNS报文上限，停止解析)\n");
@@ -351,11 +337,10 @@ void menu_http_parse(void)
                 printf("\n--- HTTP报文 #%d ---\n", http_count);
 
                 http_result_t http;
-                if (parse_http(pkt.payload, pkt.payload_len, &http) == 0) {
+                if (parse_http(pkt.payload, pkt.payload_len, &http) == 0)
                     print_http(&http);
-                } else {
+                else
                     printf("HTTP解析失败\n");
-                }
                 free_http_result(&http);
 
                 if (http_count >= 20) {
@@ -378,10 +363,8 @@ void menu_http_parse(void)
 void menu_bpf_test_suite(void)
 {
     char filename[256];
-
     printf("请输入pcap文件名：");
     scanf("%255s", filename);
-
     bpf_run_test_suite(filename);
 }
 
@@ -418,7 +401,6 @@ void menu_stats_realtime(void)
     stats_t stats;
 
     if (select_device(device_name, sizeof(device_name)) != 0) return;
-
     printf("请输入统计时长(秒，0=持续)：");
     scanf("%d", &seconds);
 
@@ -438,9 +420,8 @@ void menu_stats_pcap(void)
     printf("请输入pcap文件名：");
     scanf("%255s", filename);
 
-    if (stats_from_pcap(filename, &stats) == 0) {
+    if (stats_from_pcap(filename, &stats) == 0)
         stats_print(&stats);
-    }
 }
 
 /* 16. 流量统计（pcap文件+过滤） */
@@ -453,23 +434,20 @@ void menu_stats_pcap_filter(void)
     printf("请输入pcap文件名：");
     scanf("%255s", filename);
     clear_input_buffer();
-
     printf("请输入BPF过滤规则：");
     fgets(filter_exp, sizeof(filter_exp), stdin);
     filter_exp[strcspn(filter_exp, "\n")] = '\0';
 
-    if (stats_from_pcap_with_filter(filename, filter_exp, &stats) == 0) {
+    if (stats_from_pcap_with_filter(filename, filter_exp, &stats) == 0)
         stats_print(&stats);
-    }
 }
 
 /* ==================== 菜单显示 ==================== */
 
-/* 显示菜单 */
 void show_menu(void)
 {
     printf("\n========== 网络数据包捕获与协议解析工具 ==========\n");
-    printf("--- 抓包与文件 (成员A) ---\n");
+    printf("--- 抓包与文件 ---\n");
     printf(" 1. 查看网卡列表\n");
     printf(" 2. 连续抓包并显示统计信息\n");
     printf(" 3. 抓包并保存为pcap文件\n");
@@ -478,7 +456,7 @@ void show_menu(void)
     printf(" 6. 按BPF规则读取pcap文件\n");
     printf(" 7. 工具函数自测\n");
     printf(" 8. 抓包性能测试\n");
-    printf("--- 协议解析与统计 (成员C) ---\n");
+    printf("--- 协议解析与统计 ---\n");
     printf(" 9. 协议分析（解析pcap文件各层协议）\n");
     printf("10. DNS报文解析演示\n");
     printf("11. HTTP报文解析演示\n");
@@ -492,7 +470,6 @@ void show_menu(void)
     printf("请选择功能：");
 }
 
-/* 程序入口 */
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
@@ -504,62 +481,25 @@ int main()
         scanf("%d", &choice);
 
         switch (choice) {
-        /* 成员A/D 功能 */
-        case 1:
-            list_devices();
-            break;
-        case 2:
-            menu_capture();
-            break;
-        case 3:
-            menu_save_pcap();
-            break;
-        case 4:
-            menu_read_pcap();
-            break;
-        case 5:
-            menu_filter_capture();
-            break;
-        case 6:
-            menu_read_pcap_with_filter();
-            break;
-        case 7:
-            net_utils_self_test();
-            break;
-        case 8:
-            menu_performance_test();
-            break;
-
-        /* 成员C 功能 */
-        case 9:
-            menu_protocol_analyze();
-            break;
-        case 10:
-            menu_dns_parse();
-            break;
-        case 11:
-            menu_http_parse();
-            break;
-        case 12:
-            menu_bpf_test_suite();
-            break;
-        case 13:
-            menu_bpf_rules();
-            break;
-        case 14:
-            menu_stats_realtime();
-            break;
-        case 15:
-            menu_stats_pcap();
-            break;
-        case 16:
-            menu_stats_pcap_filter();
-            break;
-
+        case 1:  list_devices();             break;
+        case 2:  menu_capture();             break;
+        case 3:  menu_save_pcap();           break;
+        case 4:  menu_read_pcap();           break;
+        case 5:  menu_filter_capture();      break;
+        case 6:  menu_read_pcap_with_filter(); break;
+        case 7:  menu_self_test();           break;
+        case 8:  menu_performance_test();    break;
+        case 9:  menu_protocol_analyze();    break;
+        case 10: menu_dns_parse();           break;
+        case 11: menu_http_parse();          break;
+        case 12: menu_bpf_test_suite();      break;
+        case 13: menu_bpf_rules();           break;
+        case 14: menu_stats_realtime();      break;
+        case 15: menu_stats_pcap();          break;
+        case 16: menu_stats_pcap_filter();   break;
         case 0:
             printf("退出程序。\n");
             return 0;
-
         default:
             printf("输入无效，请重新选择。\n");
             break;
